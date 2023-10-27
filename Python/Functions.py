@@ -1,6 +1,20 @@
-from GlobalVariables import *
 import numpy as np
 import itertools as tl
+
+M=8            # D2D pair number 
+N=3             # total subchannels                 
+
+B1=0.2         # bandwidth MHz                                      
+R=600          # cell radius                                        CHANGECY
+L=20           # distance D2D pair transmitter and receiver         STANDART 20
+PT=0.01        # D2D transmitter power                              CONST
+alfa=4         # pathloss factor                                    CONST
+
+SINRTh=np.power(10,4.6/10)                # 2.88403                 CONST
+
+Pt_max=2                                # CUE max transmitter power CONST
+B=0.15                                  # subchannel bandwidth      CONST
+N0= np.power(10,-90/10)/1000                                       #CONST
 
 def inter_DUEtoCUE_(r_DTUE):
     global PT, alfa
@@ -38,10 +52,11 @@ def JudgeCUEPower(inter_DUEtoCUE, package, r_CUE, n):
         CUE_Pt[i] = (CUE_Interference + N0) * SINRTh * np.power(r_CUE[i], alfa)
         CUE_Capacity[i] = B*np.log2(1+SINRTh)
 
+    valid = True
     if np.max(CUE_Pt)>Pt_max:
-        raise Exception()
+        valid = False
 
-    return CUE_Pt, CUE_Capacity 
+    return CUE_Pt, CUE_Capacity , valid
 
 def inter_CUEtoDUE_(r_DTUE, package,x_CUE,x_DRUE,y_CUE,y_DRUE,r_CUE,  m, n):
     global  alfa
@@ -49,7 +64,10 @@ def inter_CUEtoDUE_(r_DTUE, package,x_CUE,x_DRUE,y_CUE,y_DRUE,r_CUE,  m, n):
     inter_CUEtoDUE = np.zeros((m, n))#return type
     
     #CALCULATION
-    CUE_Pt = JudgeCUEPower(inter_DUEtoCUE_(r_DTUE), package, r_CUE, n=n)[0]
+    CUE_Pt, _, valid = JudgeCUEPower(inter_DUEtoCUE_(r_DTUE), package, r_CUE, n=n)
+    if not valid:
+        return
+    
     for i, j in list(tl.product(range(m),range(n))):
         inter_CUEtoDUE[i,j] = CUE_Pt[j] / np.power(np.sqrt((x_CUE[j]-x_DRUE[i])**2+(y_CUE[j]-y_DRUE[i])**2), alfa)
 
@@ -77,7 +95,10 @@ def PackageCapacity_DUE(inter_DUEtoDUE, inter_CUEtoDUE, r_DRUE_shift, Package ,n
 
 
 def total_(package, r_CUE, r_DTUE,r_DRUE_shift, x_DTUE, x_DRUE, y_DTUE, y_DRUE, x_CUE, y_CUE, due_n, cue_n):
-    return np.sum(JudgeCUEPower(inter_DUEtoCUE_(r_DTUE), package, r_CUE, cue_n)[0]) + np.sum(PackageCapacity_DUE(inter_DUEtoDUE_(x_DTUE, x_DRUE, y_DTUE, y_DRUE, due_n), inter_CUEtoDUE_(r_DTUE, package,x_CUE,x_DRUE,y_CUE,y_DRUE,r_CUE, due_n, cue_n),r_DRUE_shift, package , cue_n, due_n))
+    CUE_Pt, _ , valid = JudgeCUEPower(inter_DUEtoCUE_(r_DTUE), package, r_CUE, cue_n)
+    if not valid:
+        return False, sum(CUE_Pt)
+    return np.sum(CUE_Pt) + np.sum(PackageCapacity_DUE(inter_DUEtoDUE_(x_DTUE, x_DRUE, y_DTUE, y_DRUE, due_n), inter_CUEtoDUE_(r_DTUE, package,x_CUE,x_DRUE,y_CUE,y_DRUE,r_CUE, due_n, cue_n),r_DRUE_shift, package , cue_n, due_n)), np.sum(CUE_Pt)
 
 
 def details(N, M, CUE, DRUE, DTUE):

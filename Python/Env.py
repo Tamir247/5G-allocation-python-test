@@ -1,9 +1,14 @@
 from Functions import *
-from GlobalVariables import *
 from Spaces import *
 import matplotlib.pyplot as plt
 import numpy as np
 from gym import Env, spaces
+
+
+
+#SETTINGS
+
+
 
 class _5G(Env):
     def __init__(self, M, N, render_mode = None):
@@ -18,43 +23,44 @@ class _5G(Env):
 
     def reset(self):
         self.state = self.observation_space.sample()
-        self.details = details(self.N, self.M, self.state['CUE'], self.state['DRUE'], self.state['DTUE'])
+        
+        self.details = details(self.N, self.M, self.state['CUE'], self.state['DRUE'] + self.state['DTUE'], self.state['DTUE'])
         self.done = False
         self.repeat = 50
-        self.alloc = None
         return self.state
 
-    def Total(self, action):
-        try:
-            self.total = total_(action, *self.details)
-            return self.total
-        except:
-            self.total = None
-            return None
+    def change_DTUE(self):
+        self.state['DRUE']= self.observation_space.sample()['DRUE']
+        self.details= details(self.N, self.M, self.state['CUE'], self.state['DRUE'] + self.state['DTUE'], self.state['DTUE']) #debug
+
 
     def step(self, action):
-        self.alloc = action
         self.repeat -= 1
-        self.total = self.Total(package_(self.alloc, self.N))
+        # self.Total(package_(action, self.N))
+        self.total, _ = total_(package_(action, self.N), *self.details)
+        self.alloc= action
+        self.std = np.array([len(i) for _, i in package_(action, self.N).items()]).std()
         #REWARD
-        if self.total ==None:
-            reward = -1
-        else:
-            reward = 1
+        # if self.total:
+        #     reward = 0
+        # else:
+        #     reward = INVALID_REWARD
 
         if(self.repeat > 0):
             self.done = False
         else:
             self.done = True
-
-        return reward
+        return self.done, self.total, self.std
 
     def render(self):
         _, ax = plt.subplots()
         plt.scatter(self.state['CUE'].T[0], self.state['CUE'].T[1], c='r')
         plt.scatter(self.state['DRUE'].T[0] + self.state['DTUE'].T[0],self.state['DRUE'].T[1] + self.state['DTUE'].T[1], c='cyan')
         plt.scatter(self.state['DTUE'].T[0] , self.state['DTUE'].T[1], c='blue')
-        ax.quiver(self.state['DTUE'].T[0], self.state['DTUE'].T[1], self.state['CUE'][self.alloc].T[0] - self.state['DTUE'].T[0],  self.state['CUE'][self.alloc].T[1] - self.state['DTUE'].T[1], angles='xy', scale_units='xy', scale=1, color='red', width=0.001)
+        ax.quiver(self.state['DTUE'].T[0], self.state['DTUE'].T[1], 
+                  self.state['CUE'][self.alloc].T[0] - self.state['DTUE'].T[0],
+                  self.state['CUE'][self.alloc].T[1] - self.state['DTUE'].T[1],
+                 angles='xy', scale_units='xy', scale=1, color='red', width=0.001)
         ax.set_xlim(-600, 600)
         ax.set_ylim(-600, 600)
         plt.show()
