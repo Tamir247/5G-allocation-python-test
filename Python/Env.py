@@ -29,27 +29,12 @@ class _5G(Env):
         self.repeat = 50
         return self.state
 
-    def change_DTUE(self):
-        self.state['DRUE']= self.observation_space.sample()['DRUE']
-        self.details= details(self.N, self.M, self.state['CUE'], self.state['DRUE'] + self.state['DTUE'], self.state['DTUE']) #debug
-
 
     def step(self, action):
         self.repeat -= 1
-        # self.Total(package_(action, self.N))
         self.total, _ = total_(package_(action, self.N), *self.details)
         self.alloc= action
         self.std = np.array([len(i) for _, i in package_(action, self.N).items()]).std()
-        #REWARD
-        # if self.total:
-        #     reward = 0
-        # else:
-        #     reward = INVALID_REWARD
-
-        if(self.repeat > 0):
-            self.done = False
-        else:
-            self.done = True
         return self.done, self.total, self.std
 
     def render(self):
